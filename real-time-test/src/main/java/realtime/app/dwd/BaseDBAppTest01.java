@@ -1,4 +1,4 @@
-package com.atguigu.gmall.realtime.app.dwd;
+package realtime.app.dwd;
 
 
 import com.alibaba.fastjson.JSON;
@@ -6,13 +6,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.ververica.cdc.connectors.mysql.MySQLSource;
 import com.alibaba.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.alibaba.ververica.cdc.debezium.DebeziumSourceFunction;
-import com.atguigu.gmall.realtime.bean.TableProcess;
-import com.atguigu.gmall.realtime.func.DimSinkTest01;
-import com.atguigu.gmall.realtime.func.MyFlinkCDC_Deser;
-import com.atguigu.gmall.realtime.func.TableProcessFuncTest01;
-import com.atguigu.gmall.realtime.func.TableProcessFunction;
-import com.atguigu.gmall.realtime.utils.MyKafkaUtil;
-import com.atguigu.gmall.realtime.utils.MyKafkaUtilTest01;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -24,6 +17,11 @@ import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import realtime.bean.TableProcess;
+import realtime.func.DimSinkTest01;
+import realtime.func.MyFlinkCDC_Deser;
+import realtime.utils.MyKafkaUtilTest01;
+import realtime.func.TableProcessFuncTest01;
 
 import javax.annotation.Nullable;
 
@@ -37,9 +35,9 @@ public class BaseDBAppTest01 {
         String odsBaseDbSourceTopic = "ods_base_db";
         String groupId = "base-db-app-test01";
 
-        FlinkKafkaConsumer<String> kafkaSource = MyKafkaUtil.getKafkaSource(odsBaseDbSourceTopic, groupId);
+        FlinkKafkaConsumer<String> kafkaSource = MyKafkaUtilTest01.getKafkaSource(odsBaseDbSourceTopic, groupId);
 
-        kafkaSource.setStartFromEarliest();
+        //kafkaSource.setStartFromEarliest();
 
         DataStreamSource<String> kafkaDS = env.addSource(kafkaSource);
 
@@ -57,6 +55,7 @@ public class BaseDBAppTest01 {
                 }
             }
         });
+
 
         //TODO 4.过滤"delete"类型的数据
         SingleOutputStreamOperator<JSONObject> filterDS = jsonObjDS.filter(new FilterFunction<JSONObject>() {
@@ -89,12 +88,18 @@ public class BaseDBAppTest01 {
         BroadcastConnectedStream<JSONObject, String> connectDS = filterDS.connect(broadcastStream);
 
         //TODO 8.动态分流
-        OutputTag<String> hbaseOutput = new OutputTag<String>("hbase") {
+        OutputTag<JSONObject> hbaseOutput = new OutputTag<JSONObject>("hbase") {
         };
 
-        SingleOutputStreamOperator<JSONObject> kafkaProcessDS = connectDS.process(new TableProcessFuncTest01(mapStateDescriptor, hbaseOutput));
+        SingleOutputStreamOperator<JSONObject> kafkaProcessDS = connectDS.process(new TableProcessFuncTest01(mapStateDescriptor,hbaseOutput));
 
-        DataStream<String> hbaseDS = kafkaProcessDS.getSideOutput(hbaseOutput);
+        DataStream<JSONObject> hbaseDS = kafkaProcessDS.getSideOutput(hbaseOutput);
+
+
+        //TODO 打印测试
+        kafkaProcessDS.print("kafka>>>>>>>>>");
+        hbaseDS.print("hbase>>>>>>>>>");
+
 
         //数据写入HBase
         hbaseDS.addSink(new DimSinkTest01());
@@ -103,15 +108,17 @@ public class BaseDBAppTest01 {
         //数据写入kafka
         kafkaProcessDS.addSink(MyKafkaUtilTest01.getKafkaSinkBySchema(new KafkaSerializationSchema<JSONObject>() {
             @Override
+            public void open(SerializationSchema.InitializationContext context) throws Exception {
+                System.out.println("开始序列化kafka数据  ");
+            }
+
+            @Override
             public ProducerRecord<byte[], byte[]> serialize(JSONObject element, @Nullable Long timestamp) {
                 return new ProducerRecord<byte[], byte[]>(element.getString("sinkTable"),element.getString("after").getBytes());
             }
         }));
 
-        //TODO 打印测试
-
-
-
+        //TODO 执行
         env.execute();
     }
 }

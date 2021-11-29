@@ -3,7 +3,6 @@ package com.atguigu.gmall.realtime.utils;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.gmall.realtime.common.GmallConfig;
-import org.apache.flink.api.java.tuple.Tuple2;
 import redis.clients.jedis.Jedis;
 
 import java.util.List;

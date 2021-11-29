@@ -1,11 +1,8 @@
-package com.atguigu.gmall.realtime.func;
+package realtime.func;
 
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.atguigu.gmall.realtime.bean.TableProcess;
-import com.atguigu.gmall.realtime.common.GmallConfig;
-import com.atguigu.gmall.realtime.utils.PhoenixUtil;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
@@ -13,8 +10,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import realtime.bean.TableProcess;
+import realtime.common.GmallConfig;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.*;
@@ -25,19 +25,22 @@ public class TableProcessFuncTest01 extends BroadcastProcessFunction<JSONObject,
     private Connection connection;
 
     //广播状态
-    MapStateDescriptor<String, TableProcess> mapStateDescriptor;
+    private MapStateDescriptor<String, TableProcess> mapStateDescriptor;
 
     //侧输出流标签
-    OutputTag<String> hbaseOutput;
+    private OutputTag<JSONObject> hbaseOutput;
 
-    public TableProcessFuncTest01(MapStateDescriptor<String, TableProcess> mapStateDescriptor,OutputTag<String> hbaseOutput) {
+    public TableProcessFuncTest01(MapStateDescriptor<String, TableProcess> mapStateDescriptor,OutputTag<JSONObject> hbaseOutput) {
         this.mapStateDescriptor = mapStateDescriptor;
         this.hbaseOutput = hbaseOutput;
     }
 
+    //获取Phoenix连接
     @Override
     public void open(Configuration parameters) throws Exception {
-        connection = PhoenixUtil.getConnection();
+        Class.forName(GmallConfig.PHOENIX_DRIVER);
+
+        connection = DriverManager.getConnection(GmallConfig.PHOENIX_SERVER);
     }
 
     /**
@@ -51,9 +54,7 @@ public class TableProcessFuncTest01 extends BroadcastProcessFunction<JSONObject,
     @Override
     public void processBroadcastElement(String value, Context ctx, Collector<JSONObject> out) throws Exception {
 
-        //广播流数据转为JSON对象
-        JSONObject jsonObject = JSON.parseObject(value);
-
+        JSONObject jsonObject = JSONObject.parseObject(value);
 
         //获取after
         String after = jsonObject.getString("after");
@@ -84,6 +85,8 @@ public class TableProcessFuncTest01 extends BroadcastProcessFunction<JSONObject,
         BroadcastState<String, TableProcess> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
 
         broadcastState.put(operateType + ":" + sourceTable, tableProcess);
+
+
 
 
     }
@@ -162,29 +165,32 @@ public class TableProcessFuncTest01 extends BroadcastProcessFunction<JSONObject,
         //解析主流数据
         JSONObject after = value.getJSONObject("after");
 
+
         //获取操作类型
-        String type = after.getString("type");
+        String type = value.getString("type");
 
         //获取表名
-        String tableName = after.getString("tableName");
-
-        String sink_table = after.getString("sink_table");
+        String tableName = value.getString("tableName");
 
         //从广播状态查询对应的数据
         ReadOnlyBroadcastState<String, TableProcess> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
         TableProcess tableProcess = broadcastState.get(type + ":" + tableName);
 
+
         if (tableProcess != null) {
+
+            //从广播状态中获取sinkTable
+            String sinkTable = tableProcess.getSinkTable();
 
             //过滤字段
             filter(value, tableProcess.getSinkColumns());
 
-            value.put("sinkTable",sink_table);
+            value.put("sinkTable",sinkTable);
 
             if (TableProcess.SINK_TYPE_KAFKA.equals(tableProcess.getSinkType())) {
                 out.collect(value);
             } else if (TableProcess.SINK_TYPE_HBASE.equals(tableProcess.getSinkType())) {
-                ctx.output(hbaseOutput,value.toJSONString());
+                ctx.output(hbaseOutput,value);
             }
         } else {
             System.out.println("key不存在:" + type + ":" + tableName);

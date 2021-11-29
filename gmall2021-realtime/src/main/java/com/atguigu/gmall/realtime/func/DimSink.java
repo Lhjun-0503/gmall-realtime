@@ -50,13 +50,7 @@ public class DimSink extends RichSinkFunction<JSONObject> {
             //编译SQL
             preparedStatement = connection.prepareStatement(upsertSql);
 
-            //执行
-            preparedStatement.executeUpdate();
-
-            //提交
-            connection.commit();
-
-            //判断如果为更新数据，则删除Redis中的数据
+            //判断如果为更新数据，则删除Redis中的数据  再更新Phoenix的数据
             if ("update".equals(jsonObject.getString("type"))) {
                 String value = data.getString("id");
 
@@ -64,6 +58,14 @@ public class DimSink extends RichSinkFunction<JSONObject> {
                 DimUtil.delRedisDim(tableName.toUpperCase(),value);
 
             }
+
+            //执行
+            preparedStatement.executeUpdate();
+
+            //提交
+            connection.commit();
+
+
 
         } catch (SQLException e) {
             e.printStackTrace();

@@ -23,12 +23,13 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
 public class UserJumpDetailApp {
     public static void main(String[] args) throws Exception {
-        //1.获取执行环境
+        //TODO 1.获取执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
@@ -40,7 +41,7 @@ public class UserJumpDetailApp {
         //env.enableCheckpointing(10000L, CheckpointingMode.EXACTLY_ONCE);
         //env.getCheckpointConfig().setCheckpointTimeout(60000L);
 
-        //2.读取kafka的dwd_page_log主题数据创建流
+        //TODO 2.读取kafka的dwd_page_log主题数据创建流
         String sourceTopic = "dwd_page_log";
 
         String groupId = "userJumpDetailApp";
@@ -54,7 +55,7 @@ public class UserJumpDetailApp {
         DataStreamSource<String> kafkaDS = env.addSource(kafkaSource);
 
 
-        //3.将数据转为JSON对象
+        //TODO 3.将数据转为JSON对象
         SingleOutputStreamOperator<JSONObject> jsonObjDS = kafkaDS.process(new ProcessFunction<String, JSONObject>() {
 
             @Override
@@ -74,7 +75,7 @@ public class UserJumpDetailApp {
             }
         })
                 //设定WaterMark
-                .assignTimestampsAndWatermarks(WatermarkStrategy.<JSONObject>forMonotonousTimestamps()
+                .assignTimestampsAndWatermarks(WatermarkStrategy.<JSONObject>forBoundedOutOfOrderness(Duration.ofSeconds(2))
                         .withTimestampAssigner(new SerializableTimestampAssigner<JSONObject>() {
                             @Override
                             public long extractTimestamp(JSONObject element, long recordTimestamp) {
@@ -83,7 +84,7 @@ public class UserJumpDetailApp {
                         }));
 
 
-        //4.按照mid分组
+        //TODO 4.按照mid分组
         KeyedStream<JSONObject, String> keyedStream = jsonObjDS.keyBy(new KeySelector<JSONObject, String>() {
             @Override
             public String getKey(JSONObject value) throws Exception {
@@ -91,7 +92,7 @@ public class UserJumpDetailApp {
             }
         });
 
-        //5.定义模式序列
+        //TODO 5.定义模式序列
         Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("begin")
                 .where(new SimpleCondition<JSONObject>() {
                     @Override
@@ -105,10 +106,10 @@ public class UserJumpDetailApp {
                 .consecutive()  //指定使用严格近邻
                 .within(Time.seconds(10));
 
-        //6.将模式序列作用在流上
+        //TODO 6.将模式序列作用在流上
         PatternStream<JSONObject> patternStream = CEP.pattern(keyedStream, pattern);
 
-        //7.提取事件和超时事件
+        //TODO 7.提取事件和超时事件
         OutputTag<String> timeOutTag = new OutputTag<String>("TimeOut") {
         };
 
@@ -116,7 +117,7 @@ public class UserJumpDetailApp {
                     @Override
                     public String timeout(Map<String, List<JSONObject>> map, long l) throws Exception {
 
-                        //提取事件
+                        //提取超时事件
                         List<JSONObject> begin = map.get("begin");
                         return begin.get(0).toJSONString();
                     }
@@ -125,7 +126,7 @@ public class UserJumpDetailApp {
                     @Override
                     public String select(Map<String, List<JSONObject>> map) throws Exception {
 
-                        //提取事件
+                        //提取匹配到的事件
                         List<JSONObject> begin = map.get("begin");
 
                         return begin.get(0).toJSONString();
@@ -141,7 +142,7 @@ public class UserJumpDetailApp {
         //打印测试
         result.print(">>>>>>>>>>>>");
 
-        //8.将数据写入kafka
+        //TODO 8.将数据写入kafka
         result.addSink(MyKafkaUtil.getKafkaSink(sinkTopic));
 
         //执行

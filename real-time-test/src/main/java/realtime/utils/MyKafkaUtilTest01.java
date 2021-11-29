@@ -1,4 +1,4 @@
-package com.atguigu.gmall.realtime.utils;
+package realtime.utils;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;

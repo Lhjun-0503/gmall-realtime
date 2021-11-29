@@ -1,10 +1,10 @@
-package com.atguigu.gmall.realtime.func;
+package realtime.func;
 
 import com.alibaba.fastjson.JSONObject;
-import com.atguigu.gmall.realtime.common.GmallConfig;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import realtime.common.GmallConfig;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -13,7 +13,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Set;
 
-public class DimSinkTest01 extends RichSinkFunction<String> {
+public class DimSinkTest01 extends RichSinkFunction<JSONObject> {
 
     //Phoenix连接
     private Connection connection;
@@ -27,19 +27,35 @@ public class DimSinkTest01 extends RichSinkFunction<String> {
 
     //{"db":"","tn":"","before":"","after":"","type":"","sinkTable":""}
     @Override
-    public void invoke(String value, Context context) throws Exception {
+    public void invoke(JSONObject jsonObject, Context context) throws Exception {
 
         PreparedStatement preparedStatement = null;
         try {
-            JSONObject jsonObject = JSONObject.parseObject(value);
 
-            String sql = genSQL(jsonObject.getJSONObject("after"), jsonObject.getString("sinkTable"));
+            JSONObject after = jsonObject.getJSONObject("after");
+
+            String table = jsonObject.getString("sinkTable");
+
+            String sql = genSQL(after, table);
+
+            System.out.println("Phoenix插入数据：" + sql);
 
             //编译sql
             preparedStatement = connection.prepareStatement(sql);
 
+
+            //如果是更新操作，先删除redis的缓存，再更新Phoenix的数据
+            if ("update".equals(jsonObject.getString("type"))) {
+
+                System.out.println("删除redisKey>>>>>" + table.toUpperCase() + ":" + after.getString("id"));
+
+                DimUtilTest01.delRedisDim(table, after.getString("id"));
+
+            }
+
             //执行
             preparedStatement.execute();
+
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {

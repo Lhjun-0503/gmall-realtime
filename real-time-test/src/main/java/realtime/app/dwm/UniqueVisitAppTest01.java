@@ -1,7 +1,6 @@
-package com.atguigu.gmall.realtime.app.dwm;
+package realtime.app.dwm;
 
 import com.alibaba.fastjson.JSONObject;
-import com.atguigu.gmall.realtime.utils.MyKafkaUtil;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -14,6 +13,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import realtime.utils.MyKafkaUtilTest01;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -29,7 +29,7 @@ public class UniqueVisitAppTest01 {
         String pageViewTopic = "dwd_page_log";
         String groupId = "unique-visit-app-test01";
 
-        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtil.getKafkaSource(pageViewTopic, groupId).setStartFromEarliest());
+        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtilTest01.getKafkaSource(pageViewTopic, groupId).setStartFromEarliest());
 
         //TODO 3.转JSON
         SingleOutputStreamOperator<JSONObject> jsonObjDS = kafkaDS.map(new MapFunction<String, JSONObject>() {
