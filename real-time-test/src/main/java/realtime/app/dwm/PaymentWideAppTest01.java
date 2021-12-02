@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -15,15 +14,14 @@ import org.apache.flink.util.Collector;
 import realtime.bean.OrderWide;
 import realtime.bean.PaymentInfo;
 import realtime.bean.PaymentWide;
-import realtime.func.DimAsyncFunctionTest01;
 import realtime.utils.MyKafkaUtilTest01;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
+
 
 public class PaymentWideAppTest01 {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         //TODO 1.获取执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -100,9 +98,15 @@ public class PaymentWideAppTest01 {
                     }
                 });
 
-        //TODO 5.关联维度数据
+
+        //打印测试
+        paymentWideDS.print("Payment>>>>>>>>");
 
 
         //TODO 6.写入kafka
+        paymentWideDS.map(JSON::toJSONString).addSink(MyKafkaUtilTest01.getKafkaSink(paymentWideSinkTopic));
+
+
+        env.execute();
     }
 }

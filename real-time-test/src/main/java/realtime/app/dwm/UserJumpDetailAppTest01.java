@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.CEP;
 import org.apache.flink.cep.PatternSelectFunction;
@@ -11,6 +12,7 @@ import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.PatternTimeoutFunction;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -29,16 +31,20 @@ import java.util.Map;
 public class UserJumpDetailAppTest01 {
     public static void main(String[] args) throws Exception {
         //TODO 1.创建执行环境
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        //StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
 
         env.setParallelism(1);
 
         //TODO 2.读取kafka数据 dwd_page_log
         String topic = "dwd_page_log";
 
+        String userJumpDetailSinkTopic = "dwm_user_jump_detail";
+
         String groupId = "user-jump-detail-app-test01";
 
-        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtilTest01.getKafkaSource(topic, groupId).setStartFromEarliest());
+        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtilTest01.getKafkaSource(topic, groupId)/*.setStartFromEarliest()*/);
 
         //TODO 3.转为JSON对象
         SingleOutputStreamOperator<JSONObject> jsonObjDS = kafkaDS.process(new ProcessFunction<String, JSONObject>() {
@@ -123,11 +129,21 @@ public class UserJumpDetailAppTest01 {
 
         DataStream<JSONObject> timeoutDS = selectDS.getSideOutput(outputTag);
 
-        selectDS.union(timeoutDS).print();
+        DataStream<JSONObject> unionDS = selectDS.union(timeoutDS);
 
+        //打印测试
+        unionDS.print();
+
+        //TODO 8.写入kafka
+        unionDS.map(new MapFunction<JSONObject, String>() {
+            @Override
+            public String map(JSONObject value) throws Exception {
+                return value.toJSONString();
+            }
+        }).addSink(MyKafkaUtilTest01.getKafkaSink(userJumpDetailSinkTopic));
 
         //TODO 9.执行
-        env.execute();
+        env.execute("UserJumpDetailAppTest01");
 
     }
 }

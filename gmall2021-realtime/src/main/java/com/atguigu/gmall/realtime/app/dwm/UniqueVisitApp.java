@@ -166,7 +166,7 @@ public class UniqueVisitApp {
             }
         });
 
-        //6.将过滤后的数据写入kafka的dwm_unique_visit
+        //TODO 6.将过滤后的数据写入kafka的dwm_unique_visit
         filterDS.map(new MapFunction<JSONObject, String>() {
             @Override
             public String map(JSONObject value) throws Exception {

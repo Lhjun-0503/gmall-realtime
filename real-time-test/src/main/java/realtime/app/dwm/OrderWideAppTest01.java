@@ -155,17 +155,9 @@ public class OrderWideAppTest01 {
 
                         String gender = dimInfo.getString("GENDER");
 
-                        if (gender == null) {
-                            gender = dimInfo.getString("gender");
-                        }
-
                         orderWide.setUser_gender(gender);
 
                         String birthday = dimInfo.getString("BIRTHDAY");
-
-                        if (birthday == null) {
-                            birthday = dimInfo.getString("birthday");
-                        }
 
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -261,7 +253,7 @@ public class OrderWideAppTest01 {
                     public void join(OrderWide orderWide, JSONObject dimInfo) throws ParseException {
                         System.out.println("查询到的tm维度信息" + dimInfo);
 
-                        orderWide.setSpu_name(dimInfo.getString("TM_NAME"));
+                        orderWide.setTm_name(dimInfo.getString("TM_NAME"));
                     }
                 }, 60, TimeUnit.SECONDS);
 
@@ -280,7 +272,7 @@ public class OrderWideAppTest01 {
                     public void join(OrderWide orderWide, JSONObject dimInfo) throws ParseException {
                         System.out.println("查询到的category维度信息" + dimInfo);
 
-                        orderWide.setSpu_name(dimInfo.getString("NAME"));
+                        orderWide.setCategory3_name(dimInfo.getString("NAME"));
 
 
                     }

@@ -23,13 +23,15 @@ public class UniqueVisitAppTest01 {
         //TODO 1.创建执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        //StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
+
         env.setParallelism(1);
 
         //TODO 2.读取kafka数据
         String pageViewTopic = "dwd_page_log";
         String groupId = "unique-visit-app-test01";
 
-        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtilTest01.getKafkaSource(pageViewTopic, groupId).setStartFromEarliest());
+        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtilTest01.getKafkaSource(pageViewTopic, groupId)/*.setStartFromEarliest()*/);
 
         //TODO 3.转JSON
         SingleOutputStreamOperator<JSONObject> jsonObjDS = kafkaDS.map(new MapFunction<String, JSONObject>() {
@@ -99,6 +101,6 @@ public class UniqueVisitAppTest01 {
         filterDS.print();
 
 
-        env.execute();
+        env.execute("UniqueVisitAppTest01");
     }
 }
