@@ -24,6 +24,7 @@ public class MyKafkaUtilTest01 {
 
     /**
      * 获取KafkaSink的方法  给定确定的topic
+     *
      * @param topic
      * @return
      */
@@ -32,7 +33,7 @@ public class MyKafkaUtilTest01 {
     }
 
 
-    public static <T>FlinkKafkaProducer<T> getKafkaSinkBySchema(KafkaSerializationSchema<T> kafkaSerializationSchema) {
+    public static <T> FlinkKafkaProducer<T> getKafkaSinkBySchema(KafkaSerializationSchema<T> kafkaSerializationSchema) {
 
         return new FlinkKafkaProducer<T>(
                 DEFAULT_TOPIC,
@@ -45,20 +46,26 @@ public class MyKafkaUtilTest01 {
 
     /**
      * 获取KafkaSource的方法
+     *
      * @param topic   主题
-     * @param groupId  消费者组
+     * @param groupId 消费者组
      * @return
      */
-    public static FlinkKafkaConsumer<String> getKafkaSource(String topic,String groupId){
+    public static FlinkKafkaConsumer<String> getKafkaSource(String topic, String groupId) {
         //给配置信息对象添加配置项
-        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG,groupId);
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
 
         //获取KafkaSource
-        return new FlinkKafkaConsumer<String>(topic,new SimpleStringSchema(),properties);
+        return new FlinkKafkaConsumer<String>(topic, new SimpleStringSchema(), properties);
     }
 
 
-
-
-
+    public static String getKafkaTable(String topic,String groupId) {
+        return "  'connector' = 'kafka', " +
+                "  'topic' = '"+ topic +"', " +
+                "  'properties.bootstrap.servers' = 'hadoop102:9092', " +
+                "  'properties.group.id' = '" + groupId + "', " +
+                "  'scan.startup.mode' = 'latest-offset', " +
+                "  'format' = 'json' ";
+    }
 }

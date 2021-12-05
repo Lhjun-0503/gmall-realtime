@@ -9,6 +9,9 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>real-time-test</module>
+        <module>real-time-test-02</module>
+        <module>gmall2021-logger</module>
+        <module>gmall2021-realtime</module>
     </modules>
 
     <packaging>pom</packaging>
